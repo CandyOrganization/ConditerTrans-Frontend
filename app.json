@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "ТрансЛогистик",
+    "slug": "trans-bulki",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "trans-bulki",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#2b72ee"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.translogistic.bulki"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#2b72ee"
+      },
+      "package": "com.translogistic.bulki"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Приложению нужен доступ к GPS для передачи местоположения водителя на рейсе."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {}
+  }
+}

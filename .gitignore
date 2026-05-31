@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+.expo-export-test/
+
+# Native / prebuild (generated locally)
+android/
+ios/
+.kotlin/
+
+# Environment (keep .env.example)
+.env
+.env.*
+!.env.example
+
+# Logs & debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing & coverage
+coverage/
+.nyc_output/
+
+# Secrets & signing
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+*.orig.*
+
+# Metro / bundler cache
+.metro-health-check*
+
+# @generated expo-cli
+expo-env.d.ts
+# @end expo-cli
