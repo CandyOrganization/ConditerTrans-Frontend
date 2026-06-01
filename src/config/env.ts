@@ -2,6 +2,17 @@ const trimTrailingSlash = (url: string) => url.replace(/\/$/, '');
 
 const wsToHttp = (wsUrl: string) => wsUrl.replace(/^ws/i, 'http');
 
+/** На проде с HTTPS API всегда используем wss, иначе ws редиректится на просроченный/битый TLS. */
+function normalizeTrackingWsUrl(wsUrl: string, apiUrl: string): string {
+  const trimmed = trimTrailingSlash(wsUrl);
+
+  if (apiUrl.startsWith('https://') && trimmed.startsWith('ws://')) {
+    return `wss://${trimmed.slice('ws://'.length)}`;
+  }
+
+  return trimmed;
+}
+
 /**
  * URL сервисов задаются в `..env.development` / `.env.production`.
  * Активный `.env` переключается: npm run env:local | env:prod
@@ -19,10 +30,11 @@ export const env = {
   ),
 
   /** Logistic Service — WebSocket GPS-трекинг (через nginx: /logistic-service) */
-  trackingWsUrl: trimTrailingSlash(
+  trackingWsUrl: normalizeTrackingWsUrl(
     process.env.EXPO_PUBLIC_TRACKING_WS_URL ??
       process.env.EXPO_PUBLIC_WS_URL ??
       'ws://localhost/logistic-service',
+    process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080/api',
   ),
 
   /** URL фронтенда для ссылок-приглашений */
