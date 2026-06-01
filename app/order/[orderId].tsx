@@ -42,6 +42,7 @@ export default function DispatcherOrderDetailsScreen() {
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+  const [deadlinePromptShown, setDeadlinePromptShown] = useState(false);
 
   const loadOrder = useCallback(async () => {
     if (!orderId) return;
@@ -72,6 +73,13 @@ export default function DispatcherOrderDetailsScreen() {
       cancelled = true;
     };
   }, [isAuthenticated, isDispatcher, orderId, loadOrder]);
+
+  useEffect(() => {
+    if (order?.requiresDeadlineConfirmation && !deadlinePromptShown) {
+      setActiveModal('ready');
+      setDeadlinePromptShown(true);
+    }
+  }, [order?.requiresDeadlineConfirmation, order?.id, deadlinePromptShown]);
 
   const refreshAfterAction = async (updater: () => Promise<DispatcherOrderDetail>) => {
     setActionLoading(true);
@@ -143,7 +151,7 @@ export default function DispatcherOrderDetailsScreen() {
   }
 
   const availableActions = order ? getAvailableDispatcherActions(order.status) : [];
-  const orderLabel = order ? formatOrderCode(order.orderNumber) : '';
+  const orderLabel = order ? formatOrderCode(order.orderNumber, order.status) : '';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -157,15 +165,30 @@ export default function DispatcherOrderDetailsScreen() {
           <>
             <View style={styles.hero}>
               <View style={styles.heroText}>
-                <Text style={styles.title}>{formatOrderCode(order.orderNumber)}</Text>
+                <Text style={styles.title}>{formatOrderCode(order.orderNumber, order.status)}</Text>
                 <Text style={styles.company}>{order.companyName}</Text>
               </View>
               <OrderStatusBadge status={order.status} />
             </View>
 
+            {order.requiresDeadlineConfirmation ? (
+              <View style={styles.deadlineBanner}>
+                <Text style={styles.deadlineBannerTitle}>Нужно подтвердить готовность к сроку</Text>
+                <Text style={styles.deadlineBannerText}>
+                  Укажите габариты груза или перенесите срок. Без ответа заказ будет отменён.
+                </Text>
+              </View>
+            ) : null}
+
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Информация о заказе</Text>
               <InfoRow label="Дата формирования" value={formatDisplayDate(order.creationDate)} />
+              {order.requestedDeliveryDate ? (
+                <InfoRow
+                  label="Дата доставки"
+                  value={formatDisplayDate(order.requestedDeliveryDate)}
+                />
+              ) : null}
               <InfoRow label="Заказчик" value={order.companyName} />
               <InfoRow label="Адрес доставки" value={order.deliveryAddress} />
               {order.productionAddress ? (
@@ -244,10 +267,13 @@ export default function DispatcherOrderDetailsScreen() {
           />
           <DispatcherReadyForShipmentModal
             visible={activeModal === 'ready'}
+            deadlineMode={order.requiresDeadlineConfirmation}
+            requestedDeliveryDate={order.requestedDeliveryDate}
+            deadlineConfirmationExpiresAt={order.deadlineConfirmationExpiresAt}
             onClose={() => setActiveModal(null)}
-            onSubmit={async (shipmentDate) => {
+            onSubmit={async (payload) => {
               await refreshAfterAction(() =>
-                readyDispatcherOrderForShipment(order.id, { shipmentDate }),
+                readyDispatcherOrderForShipment(order.id, payload),
               );
             }}
           />
@@ -291,6 +317,24 @@ const styles = StyleSheet.create({
     maxWidth: 900,
     width: '100%',
     alignSelf: 'center',
+  },
+  deadlineBanner: {
+    backgroundColor: '#fff4e5',
+    borderColor: '#f0a500',
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+    gap: 4,
+  },
+  deadlineBannerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  deadlineBannerText: {
+    fontSize: 13,
+    color: colors.textMuted,
   },
   hero: {
     flexDirection: 'row',

@@ -15,7 +15,7 @@
 | POST | `/api/orders/dispatcher/{id}/confirm` | → `Confirmed`, `DispatcherId`, адрес производства |
 | POST | `/api/orders/dispatcher/{id}/reject` | `{ "reason" }` → `Rejected` |
 | POST | `/api/orders/dispatcher/{id}/reschedule` | `{ "newDeliveryDate", "reason" }` → `Rescheduled` (менеджер пересогласовывает — см. [manager-reschedule-api.md](./manager-reschedule-api.md)) |
-| POST | `/api/orders/dispatcher/{id}/ready-for-shipment` | `{ "shipmentDate" }` → `AwaitingShipment` |
+| POST | `/api/orders/dispatcher/{id}/ready-for-shipment` | `{ "shipmentDate", "lengthM", "widthM", "heightM", "weightKg" }` → `AwaitingShipment` + создаётся `cargo` |
 | POST | `/api/orders/dispatcher/{id}/handover` | `{ "documentsHandedOver" }` → `Shipped` |
 
 Доступ: роль `Dispatcher` в JWT.

@@ -8,10 +8,6 @@ import { apiRequest } from './client';
 
 const ORDERS_API = '/orders';
 
-interface ManagerOrdersListResponse {
-  result: ApiManagerOrder[];
-}
-
 interface ApiManagerOrder {
   id: string;
   orderNumber: number;
@@ -75,11 +71,6 @@ function mapManagerOrderDetail(item: ApiManagerOrder): ManagerOrderDetail {
       productPrice: line.productPrice,
     })),
   };
-}
-
-export async function fetchRescheduledOrders(): Promise<ManagerOrderListItem[]> {
-  const data = await apiRequest<ManagerOrdersListResponse>(`${ORDERS_API}/rescheduled`);
-  return (data.result ?? []).map(mapManagerOrder);
 }
 
 export async function fetchManagerOrderById(id: string): Promise<ManagerOrderDetail> {

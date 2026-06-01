@@ -1,31 +1,24 @@
-# Пересогласование сроков (менеджер по закупкам)
+# Пересогласование сроков (менеджер)
 
-## Сценарий
+Минимальный сценарий:
 
-1. **Диспетчер производства** фиксирует срыв сроков: `POST /api/orders/dispatcher/{id}/reschedule` с `newDeliveryDate` и `reason`.
-2. Заказ переходит в статус **`Rescheduled`**. На заказе сохраняются `proposed_delivery_date` и `reschedule_reason`.
-3. **Менеджер** (автор заказа, JWT `Manager`) видит заказ в очереди пересогласования и принимает решение.
-4. **Согласие** → `Confirmed` (производство продолжает работу по согласованной дате).
-5. **Отказ** → `Rejected` (заказ отклонён со стороны закупок).
+1. Диспетчер: `POST /api/orders/dispatcher/{id}/reschedule` → статус `Rescheduled`.
+2. Менеджер в карточке заказа из истории (`status === Rescheduled`):
+   - **Принять** — `POST /api/orders/{id}/reschedule/accept` → `Confirmed`
+   - **Отменить** — `POST /api/orders/{id}/reschedule/reject` → `Rejected`
 
-Пока статус `Rescheduled`, диспетчер **не может** подтвердить заказ (`confirm` доступен только из `PendingApproval`). Диспетчер может лишь обновить предложение (`reschedule`).
+Тело запросов необязательно (`{}`).
 
-## Эндпоинты менеджера
+## Новый заказ при согласовании
 
-| Метод | Путь | Описание |
-|-------|------|----------|
-| GET | `/api/orders/rescheduled` | Заказы в статусе `Rescheduled` текущего менеджера |
-| GET | `/api/orders/{id}` | Детали заказа + `reschedule` (если ожидает пересогласования) |
-| GET | `/api/orders/history` | История с `orderNumber`, `amount`, `reschedule` |
-| POST | `/api/orders/{id}/reschedule/accept` | `{ "comment"? }` → `Confirmed` |
-| POST | `/api/orders/{id}/reschedule/reject` | `{ "reason"? }` → `Rejected` |
+Пока у менеджера есть заказ в `PendingApproval` или `Rescheduled`, `POST /api/orders` (добавление товара) **всегда создаёт новый черновик**, а не дописывает строки в старый заказ. Текущий черновик — последний по дате (`GET /api/orders/current`).
 
-Клиент на фронте: `src/api/managerOrders.ts`.
+## Миграция БД
 
-## Миграция
-
-`20260602120000_AddOrderRescheduleFields` — колонки `proposed_delivery_date`, `reschedule_reason` в `orders`.
+Ошибка `column o.proposed_delivery_date does not exist` — не применена миграция:
 
 ```bash
 dotnet ef database update --project DataAccess --startup-project API
 ```
+
+Миграция: `20260602120000_AddOrderRescheduleFields`.

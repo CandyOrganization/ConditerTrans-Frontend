@@ -16,9 +16,12 @@ export function OrderListCard({ order, onPress }: OrderListCardProps) {
       onPress={() => onPress(order)}
     >
       <View style={styles.header}>
-        <Text style={styles.code}>{formatOrderCode(order.orderNumber)}</Text>
+        <Text style={styles.code}>{formatOrderCode(order.orderNumber, order.status)}</Text>
         <OrderStatusBadge status={order.status} />
       </View>
+      {order.requiresDeadlineConfirmation ? (
+        <Text style={styles.deadlineBadge}>Требуется подтверждение к сроку</Text>
+      ) : null}
       <Text style={styles.company}>{order.companyName}</Text>
       <Text style={styles.meta}>Сформирован: {formatDisplayDate(order.creationDate)}</Text>
       <Text style={styles.address} numberOfLines={2}>
@@ -58,6 +61,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     flex: 1,
+  },
+  deadlineBadge: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.error,
   },
   company: {
     fontSize: 14,

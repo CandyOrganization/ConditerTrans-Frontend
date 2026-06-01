@@ -59,6 +59,14 @@ export function DispatcherOrdersPanel() {
     <>
       <SectionTitle>Список заказов ({orders.length})</SectionTitle>
 
+      {orders.some((item) => item.requiresDeadlineConfirmation) ? (
+        <View style={styles.deadlineNotice}>
+          <Text style={styles.deadlineNoticeText}>
+            Есть заказы, по которым нужно подтвердить готовность к сроку (за 2 дня до доставки).
+          </Text>
+        </View>
+      ) : null}
+
       <View style={styles.searchRow}>
         <Input
           value={searchInput}
@@ -95,6 +103,19 @@ export function DispatcherOrdersPanel() {
 }
 
 const styles = StyleSheet.create({
+  deadlineNotice: {
+    backgroundColor: '#fff4e5',
+    borderColor: '#f0a500',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+  },
+  deadlineNoticeText: {
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '600',
+  },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',

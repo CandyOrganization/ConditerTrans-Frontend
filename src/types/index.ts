@@ -33,6 +33,8 @@ export interface DispatcherOrderLine {
   productPrice?: number;
 }
 
+export type DeadlineConfirmationPhase = 'None' | 'FirstRequest' | 'Reminder';
+
 export interface DispatcherOrderListItem {
   id: string;
   orderNumber: number;
@@ -42,6 +44,10 @@ export interface DispatcherOrderListItem {
   status: DispatcherOrderStatus;
   amount?: number;
   paymentType?: string | null;
+  requestedDeliveryDate?: string | null;
+  requiresDeadlineConfirmation?: boolean;
+  deadlineConfirmationExpiresAt?: string | null;
+  deadlineConfirmationPhase?: DeadlineConfirmationPhase;
 }
 
 export interface DispatcherOrderDetail extends DispatcherOrderListItem {
@@ -63,6 +69,10 @@ export interface RescheduleDispatcherOrderDto {
 
 export interface ReadyForShipmentDto {
   shipmentDate: string;
+  lengthM: number;
+  widthM: number;
+  heightM: number;
+  weightKg: number;
 }
 
 export interface HandoverDispatcherOrderDto {

@@ -19,6 +19,7 @@ export interface CargoItem {
   id: string;
   orderId?: string | null;
   orderNumber?: number | null;
+  dimensions?: string | null;
   loadingDate: string;
   unloadingDate: string;
   deliveryAddress: string;
@@ -71,7 +72,7 @@ export function mapCargoToApplication(cargo: CargoItem): Application {
     from: cargo.productionAddress?.trim() || '—',
     to: cargo.deliveryAddress,
     weight: formatLinesSummary(cargo),
-    dimensions: formatVolume(cargo.volume),
+    dimensions: cargo.dimensions?.trim() || formatVolume(cargo.volume),
     price: cargo.orderAmount
       ? `${cargo.orderAmount.toLocaleString('ru-RU')} ₽`
       : formatWeight(cargo.weight),

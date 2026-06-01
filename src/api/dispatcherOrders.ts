@@ -26,6 +26,10 @@ interface ApiDispatcherOrder {
   amount: number;
   paymentType?: string | null;
   productionAddress?: string | null;
+  requestedDeliveryDate?: string | null;
+  requiresDeadlineConfirmation?: boolean;
+  deadlineConfirmationExpiresAt?: string | null;
+  deadlineConfirmationPhase?: string;
   lines?: ApiDispatcherOrderLine[];
   handoverVehicle?: string | null;
   handoverDriver?: string | null;
@@ -38,8 +42,19 @@ interface ApiDispatcherOrderLine {
   productPrice: number;
 }
 
-export function formatOrderCode(orderNumber: number): string {
-  return `№${orderNumber}`;
+export function formatOrderCode(
+  orderNumber: number | null | undefined,
+  status?: DispatcherOrderStatus,
+): string {
+  if (orderNumber != null && orderNumber > 0) {
+    return `№${String(orderNumber).padStart(5, '0')}`;
+  }
+
+  if (status === 'Draft') {
+    return 'Черновик';
+  }
+
+  return 'Без номера';
 }
 
 export function formatDisplayDate(iso: string): string {
@@ -70,6 +85,10 @@ function mapListItem(order: ApiDispatcherOrder): DispatcherOrderListItem {
     status: order.status,
     amount: order.amount,
     paymentType: order.paymentType,
+    requestedDeliveryDate: order.requestedDeliveryDate ?? null,
+    requiresDeadlineConfirmation: order.requiresDeadlineConfirmation ?? false,
+    deadlineConfirmationExpiresAt: order.deadlineConfirmationExpiresAt ?? null,
+    deadlineConfirmationPhase: (order.deadlineConfirmationPhase as DispatcherOrderListItem['deadlineConfirmationPhase']) ?? 'None',
   };
 }
 
@@ -146,7 +165,13 @@ export async function readyDispatcherOrderForShipment(
 ): Promise<DispatcherOrderDetail> {
   const data = await apiRequest<ApiDispatcherOrder>(`${DISPATCHER_API}/${id}/ready-for-shipment`, {
     method: 'POST',
-    body: JSON.stringify({ shipmentDate: dto.shipmentDate }),
+    body: JSON.stringify({
+      shipmentDate: dto.shipmentDate,
+      lengthM: dto.lengthM,
+      widthM: dto.widthM,
+      heightM: dto.heightM,
+      weightKg: dto.weightKg,
+    }),
   });
   return mapDetail(data);
 }
