@@ -3,7 +3,7 @@ const trimTrailingSlash = (url: string) => url.replace(/\/$/, '');
 const wsToHttp = (wsUrl: string) => wsUrl.replace(/^ws/i, 'http');
 
 /**
- * URL сервисов задаются в `.env.development` / `.env.production`.
+ * URL сервисов задаются в `..env.development` / `.env.production`.
  * Активный `.env` переключается: npm run env:local | env:prod
  *
  * Expo подхватывает только переменные с префиксом EXPO_PUBLIC_.

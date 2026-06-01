@@ -109,7 +109,13 @@ export default function EmployeesScreen() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onSubmit={handleCreate}
-        showRolePicker={userRole === 'Coordinator'}
+        showRolePicker={userRole === 'Coordinator' || userRole === 'Dispatcher'}
+        defaultUserRole={userRole === 'Dispatcher' ? 'Dispatcher' : 'Coordinator'}
+        allowedRoles={
+          userRole === 'Dispatcher'
+            ? ['Dispatcher']
+            : ['Coordinator', 'Driver']
+        }
       />
 
       {inviteSuccess ? (

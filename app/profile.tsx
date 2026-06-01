@@ -65,6 +65,7 @@ export default function ProfileScreen() {
 
   const handleChangePassword = async (dto: ChangePasswordDto) => {
     await changePassword(dto);
+    setError(null);
   };
 
   if (authLoading) return <LoadingText />;

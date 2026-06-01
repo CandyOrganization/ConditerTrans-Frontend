@@ -15,6 +15,7 @@ export default function RootLayout() {
         <Stack.Screen name="profile" />
         <Stack.Screen name="cargo/[cargoId]" />
         <Stack.Screen name="trip/[tripId]" />
+        <Stack.Screen name="order/[orderId]" />
       </Stack>
     </AuthProvider>
   );

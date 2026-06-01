@@ -18,6 +18,7 @@ import type {
   TripStatus,
 } from '../src/types';
 import { ApplicationCard } from '../src/components/ApplicationCard/ApplicationCard';
+import { DispatcherOrdersPanel } from '../src/components/Dispatcher/DispatcherOrdersPanel';
 import { ProcessApplicationModal } from '../src/components/Modal/ProcessApplicationModal';
 import { Header } from '../src/components/Header/Header';
 import { TripTable } from '../src/components/TripTable/TripTable';
@@ -30,6 +31,7 @@ export default function DashboardScreen() {
   const { isAuthenticated, loading: authLoading, userRole } = useAuth();
   const isCoordinator = userRole === 'Coordinator';
   const isDriver = userRole === 'Driver';
+  const isDispatcher = userRole === 'Dispatcher';
 
   const [applications, setApplications] = useState<Application[]>([]);
   const [activeTrips, setActiveTrips] = useState<Trip[]>([]);
@@ -104,7 +106,7 @@ export default function DashboardScreen() {
   }, [isCoordinator, isDriver]);
 
   const loadTrips = useCallback(async () => {
-    if (isCoordinator || isDriver) {
+    if (isCoordinator || isDriver || isDispatcher) {
       setTrips(null);
       return;
     }
@@ -117,7 +119,7 @@ export default function DashboardScreen() {
         pageSize: 5,
       }),
     );
-  }, [isCoordinator, isDriver, search, statusFilter, page]);
+  }, [isCoordinator, isDriver, isDispatcher, search, statusFilter, page]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -148,6 +150,17 @@ export default function DashboardScreen() {
   }
 
   const showActiveTrips = isCoordinator || isDriver;
+
+  if (isDispatcher) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <Header />
+        <ScrollView style={styles.main} contentContainerStyle={styles.content}>
+          <DispatcherOrdersPanel />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>

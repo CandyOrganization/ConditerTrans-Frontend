@@ -30,6 +30,8 @@ interface CreateEmployeeModalProps {
   onClose: () => void;
   onSubmit: (dto: CreateEmployeeDto) => Promise<void>;
   showRolePicker: boolean;
+  defaultUserRole?: UserRole;
+  allowedRoles?: UserRole[];
 }
 
 export function CreateEmployeeModal({
@@ -37,6 +39,8 @@ export function CreateEmployeeModal({
   onClose,
   onSubmit,
   showRolePicker,
+  defaultUserRole = 'Coordinator',
+  allowedRoles = ['Coordinator', 'Driver'],
 }: CreateEmployeeModalProps) {
   const [form, setForm] = useState<CreateEmployeeDto>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
@@ -46,12 +50,12 @@ export function CreateEmployeeModal({
     if (isOpen) {
       setForm({
         ...EMPTY_FORM,
-        userRole: 'Coordinator',
+        userRole: defaultUserRole,
       });
       setSubmitting(false);
       setError('');
     }
-  }, [isOpen]);
+  }, [isOpen, defaultUserRole]);
 
   const update = <K extends keyof CreateEmployeeDto>(
     key: K,
@@ -141,8 +145,15 @@ export function CreateEmployeeModal({
                     selectedValue={form.userRole}
                     onValueChange={(value) => update('userRole', value as UserRole)}
                   >
-                    <Picker.Item label="Логист-координатор" value="Coordinator" />
-                    <Picker.Item label="Водитель" value="Driver" />
+                    {allowedRoles.includes('Coordinator') ? (
+                      <Picker.Item label="Логист-координатор" value="Coordinator" />
+                    ) : null}
+                    {allowedRoles.includes('Driver') ? (
+                      <Picker.Item label="Водитель" value="Driver" />
+                    ) : null}
+                    {allowedRoles.includes('Dispatcher') ? (
+                      <Picker.Item label="Диспетчер производства" value="Dispatcher" />
+                    ) : null}
                   </Picker>
                 </View>
               </>

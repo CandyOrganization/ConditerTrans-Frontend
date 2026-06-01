@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { BellIcon, TruckIcon, UserIcon } from '../Icons/Icons';
 import { colors } from '../../theme/colors';
 
+const BRAND_NAME = 'КондитерТранс';
+
 interface HeaderProps {
   variant?: 'dashboard' | 'app' | 'trip';
 }
@@ -11,7 +13,8 @@ interface HeaderProps {
 export function Header({ variant = 'dashboard' }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { logout, isAdmin } = useAuth();
+  const { logout, isAdmin, userRole } = useAuth();
+  const isDispatcher = userRole === 'Dispatcher';
 
   const handleLogout = async () => {
     await logout();
@@ -19,7 +22,10 @@ export function Header({ variant = 'dashboard' }: HeaderProps) {
   };
 
   const isTripDetails =
-    variant === 'trip' || pathname.startsWith('/trip/') || pathname.startsWith('/cargo/');
+    variant === 'trip' ||
+    pathname.startsWith('/trip/') ||
+    pathname.startsWith('/cargo/') ||
+    pathname.startsWith('/order/');
   const showMainNav =
     variant === 'app' ||
     variant === 'dashboard' ||
@@ -33,7 +39,7 @@ export function Header({ variant = 'dashboard' }: HeaderProps) {
       <View style={styles.inner}>
         <Pressable style={styles.logo} onPress={() => router.push('/')}>
           <TruckIcon size={28} />
-          <Text style={styles.title}>ТрансЛогистик</Text>
+          <Text style={styles.title}>{BRAND_NAME}</Text>
         </Pressable>
 
         {isTripDetails ? (
@@ -60,7 +66,9 @@ export function Header({ variant = 'dashboard' }: HeaderProps) {
                   active={pathname === '/employees'}
                 />
               ) : null}
-              <NavLink href="/reports" label="Отчёты" active={pathname === '/reports'} />
+              {!isDispatcher ? (
+                <NavLink href="/reports" label="Отчёты" active={pathname === '/reports'} />
+              ) : null}
               <NavLink href="/profile" label="Профиль" active={pathname === '/profile'} />
             </View>
             <View style={styles.actions}>

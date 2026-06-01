@@ -1,5 +1,5 @@
 import type { ChangePasswordDto, UpdateProfileDto, UserProfile } from '../types';
-import { apiRequest, mockRequest } from './client';
+import { apiRequest } from './client';
 
 interface EmployeeApiResponse {
   name: string;
@@ -22,7 +22,7 @@ interface UserMeApiResponse {
 
 const USER_ROLE_LABELS: Record<string, string> = {
   Manager: 'Менеджер',
-  Dispatcher: 'Диспетчер',
+  Dispatcher: 'Диспетчер производства',
   Coordinator: 'Координатор',
 };
 
@@ -75,12 +75,17 @@ export async function fetchUserProfile(): Promise<UserProfile> {
 }
 
 export async function updateUserProfile(dto: UpdateProfileDto): Promise<UserProfile> {
-  // TODO: подключить PUT/PATCH на бэкенде
-  const current = await fetchUserProfile();
-  return mockRequest({
-    ...current,
-    ...dto,
+  const data = await apiRequest<UserMeApiResponse>('/users/me', {
+    method: 'PUT',
+    body: JSON.stringify({
+      lastName: dto.lastName,
+      firstName: dto.firstName,
+      middleName: dto.middleName || null,
+      phone: dto.phone,
+      email: dto.email,
+    }),
   });
+  return mapUserMeToProfile(data);
 }
 
 export async function changePassword(dto: ChangePasswordDto): Promise<void> {
@@ -90,8 +95,15 @@ export async function changePassword(dto: ChangePasswordDto): Promise<void> {
   if (dto.newPassword.length < 6) {
     throw new Error('Новый пароль должен быть не короче 6 символов');
   }
-  // TODO: подключить эндпоинт смены пароля на бэкенде
-  await mockRequest(undefined);
+
+  await apiRequest('/users/me/change-password', {
+    method: 'POST',
+    body: JSON.stringify({
+      currentPassword: dto.currentPassword,
+      newPassword: dto.newPassword,
+      confirmPassword: dto.confirmPassword,
+    }),
+  });
 }
 
 export function formatFullName(profile: UserProfile): string {

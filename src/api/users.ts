@@ -9,18 +9,26 @@ export async function fetchCompanyEmployees(): Promise<CurrentUser[]> {
   return apiRequest<CurrentUser[]>('/users/employees');
 }
 
-export async function inviteEmployee(dto: CreateEmployeeDto): Promise<{ inviteId: string }> {
+export async function inviteEmployee(
+  dto: CreateEmployeeDto,
+  options?: { omitRole?: boolean },
+): Promise<{ inviteId: string }> {
+  const body: Record<string, unknown> = {
+    name: dto.name,
+    surname: dto.surname,
+    patronymic: dto.patronymic || null,
+    phone: dto.phone,
+    employeeNumber: dto.employeeNumber,
+    email: dto.email,
+  };
+
+  if (!options?.omitRole && dto.userRole) {
+    body.userRole = dto.userRole;
+  }
+
   return apiRequest<{ inviteId: string }>('/users/admin-invite', {
     method: 'POST',
-    body: JSON.stringify({
-      name: dto.name,
-      surname: dto.surname,
-      patronymic: dto.patronymic || null,
-      phone: dto.phone,
-      employeeNumber: dto.employeeNumber,
-      email: dto.email,
-      userRole: dto.userRole,
-    }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -31,7 +39,7 @@ export function getUserRoleLabel(role: UserRole): string {
     case 'Driver':
       return 'Водитель';
     case 'Dispatcher':
-      return 'Диспетчер';
+      return 'Диспетчер производства';
     case 'Manager':
       return 'Менеджер';
     default:

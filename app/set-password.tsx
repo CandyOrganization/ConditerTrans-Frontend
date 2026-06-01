@@ -74,7 +74,7 @@ export default function SetPasswordScreen() {
           <View style={styles.card}>
             <View style={styles.brand}>
               <TruckIcon size={32} />
-              <Text style={styles.brandTitle}>ТрансЛогистик</Text>
+              <Text style={styles.brandTitle}>КондитерТранс</Text>
             </View>
 
             <Text style={styles.heading}>Установка пароля</Text>

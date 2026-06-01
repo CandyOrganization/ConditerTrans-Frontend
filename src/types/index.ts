@@ -14,6 +14,92 @@ export interface AuthUser {
 
 export type UserRole = 'Manager' | 'Dispatcher' | 'Coordinator' | 'Driver';
 
+/** Статусы заказа с бэкенда (Common.Enums.OrderStatus) */
+export type DispatcherOrderStatus =
+  | 'Draft'
+  | 'PendingApproval'
+  | 'Confirmed'
+  | 'Rescheduled'
+  | 'Rejected'
+  | 'AwaitingShipment'
+  | 'Shipped'
+  | 'Delivered';
+
+export interface DispatcherOrderLine {
+  productName: string;
+  quantity: number;
+  unit: string;
+  formattedQuantity?: string;
+  productPrice?: number;
+}
+
+export interface DispatcherOrderListItem {
+  id: string;
+  orderNumber: number;
+  companyName: string;
+  creationDate: string;
+  deliveryAddress: string;
+  status: DispatcherOrderStatus;
+  amount?: number;
+  paymentType?: string | null;
+}
+
+export interface DispatcherOrderDetail extends DispatcherOrderListItem {
+  productionAddress?: string | null;
+  lines: DispatcherOrderLine[];
+  /** Для модалки отгрузки (когда логист уже назначен) */
+  handoverVehicle?: string | null;
+  handoverDriver?: string | null;
+}
+
+export interface RejectDispatcherOrderDto {
+  reason: string;
+}
+
+export interface RescheduleDispatcherOrderDto {
+  newDeliveryDate: string;
+  reason: string;
+}
+
+export interface ReadyForShipmentDto {
+  shipmentDate: string;
+}
+
+export interface HandoverDispatcherOrderDto {
+  documentsHandedOver: boolean;
+}
+
+export type ManagerOrderStatus = Exclude<DispatcherOrderStatus, 'Draft'>;
+
+export interface RescheduleProposal {
+  proposedDeliveryDate: string;
+  reason: string;
+}
+
+export interface ManagerOrderListItem {
+  id: string;
+  orderNumber: number;
+  creationDate: string;
+  status: ManagerOrderStatus;
+  productionAddress?: string | null;
+  deliveryAddress?: string | null;
+  paymentType?: string | null;
+  amount: number;
+  reschedule?: RescheduleProposal;
+}
+
+export interface ManagerOrderDetail extends ManagerOrderListItem {
+  lines: DispatcherOrderLine[];
+}
+
+export interface AcceptManagerRescheduleDto {
+  comment?: string;
+}
+
+export interface RejectManagerRescheduleDto {
+  reason?: string;
+}
+
 export interface EmployeeInfo {
   name: string;
   surname: string;
