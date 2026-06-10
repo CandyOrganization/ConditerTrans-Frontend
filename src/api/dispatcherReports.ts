@@ -1,6 +1,5 @@
 import type { ProductRatingRow, RejectionReportRow, ReportDateFilter } from '../types';
-import { apiRequest, ApiError } from './client';
-import { fetchProductRatingReport, fetchRejectionReport } from './reports';
+import { apiRequest } from './client';
 
 const REFUSALS_PATH = '/orders/dispatcher/reports/refusals';
 const RATING_PATH = '/orders/dispatcher/reports/product-rating';
@@ -13,15 +12,22 @@ interface RatingApiResponse {
   result: ProductRatingRow[];
 }
 
-async function withReportMock<T>(apiCall: () => Promise<T>, mockFn: () => Promise<T>): Promise<T> {
-  try {
-    return await apiCall();
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 404) {
-      return mockFn();
-    }
-    throw err;
-  }
+interface RefusalsApiRow {
+  reason: string;
+  orderCount: number;
+  sharePercent: number;
+  Reason?: string;
+  OrderCount?: number;
+  SharePercent?: number;
+}
+
+interface RatingApiRow {
+  rank: number;
+  name: string;
+  orderCount: number;
+  Rank?: number;
+  Name?: string;
+  OrderCount?: number;
 }
 
 function buildQuery(filter: ReportDateFilter): string {
@@ -36,28 +42,32 @@ function buildQuery(filter: ReportDateFilter): string {
   return qs ? `?${qs}` : '';
 }
 
+function mapRejectionRow(row: RefusalsApiRow): RejectionReportRow {
+  return {
+    reason: row.reason ?? row.Reason ?? '—',
+    orderCount: row.orderCount ?? row.OrderCount ?? 0,
+    sharePercent: row.sharePercent ?? row.SharePercent ?? 0,
+  };
+}
+
+function mapRatingRow(row: RatingApiRow): ProductRatingRow {
+  return {
+    rank: row.rank ?? row.Rank ?? 0,
+    name: row.name ?? row.Name ?? '—',
+    orderCount: row.orderCount ?? row.OrderCount ?? 0,
+  };
+}
+
 export async function fetchDispatcherRejectionReport(
   filter: ReportDateFilter,
 ): Promise<RejectionReportRow[]> {
-  return withReportMock(
-    async () => {
-      const data = await apiRequest<RefusalsApiResponse>(
-        `${REFUSALS_PATH}${buildQuery(filter)}`,
-      );
-      return data.result ?? [];
-    },
-    () => fetchRejectionReport(filter),
-  );
+  const data = await apiRequest<RefusalsApiResponse>(`${REFUSALS_PATH}${buildQuery(filter)}`);
+  return (data.result ?? []).map(mapRejectionRow);
 }
 
 export async function fetchDispatcherProductRatingReport(
   filter: ReportDateFilter,
 ): Promise<ProductRatingRow[]> {
-  return withReportMock(
-    async () => {
-      const data = await apiRequest<RatingApiResponse>(`${RATING_PATH}${buildQuery(filter)}`);
-      return data.result ?? [];
-    },
-    () => fetchProductRatingReport(filter),
-  );
+  const data = await apiRequest<RatingApiResponse>(`${RATING_PATH}${buildQuery(filter)}`);
+  return (data.result ?? []).map(mapRatingRow);
 }

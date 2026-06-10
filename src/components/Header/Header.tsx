@@ -66,9 +66,7 @@ export function Header({ variant = 'dashboard' }: HeaderProps) {
                   active={pathname === '/employees'}
                 />
               ) : null}
-              {!isDispatcher ? (
-                <NavLink href="/reports" label="Отчёты" active={pathname === '/reports'} />
-              ) : null}
+              <NavLink href="/reports" label="Отчёты" active={pathname === '/reports'} />
               <NavLink href="/profile" label="Профиль" active={pathname === '/profile'} />
             </View>
             <View style={styles.actions}>

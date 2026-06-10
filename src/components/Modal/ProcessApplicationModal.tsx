@@ -11,7 +11,12 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { formatApplicationLabel, formatApplicationRoute } from '../../api/applications';
-import { fetchAvailableDrivers, formatDriverLabel } from '../../api/drivers';
+import { fetchCompanyDrivers, formatDriverLabel } from '../../api/drivers';
+import { ApiError } from '../../api/client';
+import {
+  fetchAvailableTransportVehicles,
+  type TransportVehicleListItem,
+} from '../../api/transportVehicles';
 import type { Application, Driver, ProcessApplicationDto } from '../../types';
 import { CloseIcon } from '../Icons/Icons';
 import { Button, FieldLabel, Input } from '../ui/Ui';
@@ -30,10 +35,14 @@ export function ProcessApplicationModal({
 }: ProcessApplicationModalProps) {
   const isOpen = application !== null;
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [vehicles, setVehicles] = useState<TransportVehicleListItem[]>([]);
   const [driverId, setDriverId] = useState('');
+  const [transportVehicleId, setTransportVehicleId] = useState('');
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [loadingDrivers, setLoadingDrivers] = useState(false);
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
+  const [driversError, setDriversError] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -41,14 +50,47 @@ export function ProcessApplicationModal({
     setComment('');
     setSubmitting(false);
     setLoadingDrivers(true);
+    setLoadingVehicles(true);
+    setTransportVehicleId('');
+    setDriversError('');
 
     let cancelled = false;
     (async () => {
-      const list = await fetchAvailableDrivers();
-      if (cancelled) return;
-      setDrivers(list);
-      setDriverId(list[0]?.id ?? '');
-      setLoadingDrivers(false);
+      try {
+        const list = await fetchCompanyDrivers();
+        if (cancelled) return;
+        setDrivers(list);
+        const preferred =
+          list.find((driver) => driver.status === 'free') ?? list[0] ?? null;
+        const firstDriverId = preferred?.id ?? '';
+        setDriverId(firstDriverId);
+        setLoadingDrivers(false);
+
+        if (!firstDriverId) {
+          setVehicles([]);
+          setLoadingVehicles(false);
+          return;
+        }
+
+        const vehicleList = await fetchAvailableTransportVehicles(firstDriverId);
+        if (cancelled) return;
+        setVehicles(vehicleList);
+        setTransportVehicleId(vehicleList[0]?.id ?? '');
+        setLoadingVehicles(false);
+      } catch (err) {
+        if (cancelled) return;
+        setDrivers([]);
+        setVehicles([]);
+        setDriverId('');
+        setTransportVehicleId('');
+        setLoadingDrivers(false);
+        setLoadingVehicles(false);
+        if (err instanceof ApiError && err.status === 403) {
+          setDriversError('Нет доступа к списку водителей (нужна роль логиста-координатора)');
+        } else {
+          setDriversError(err instanceof Error ? err.message : 'Не удалось загрузить водителей');
+        }
+      }
     })();
 
     return () => {
@@ -56,12 +98,38 @@ export function ProcessApplicationModal({
     };
   }, [isOpen, application?.id]);
 
+  useEffect(() => {
+    if (!isOpen || !driverId) {
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingVehicles(true);
+    (async () => {
+      const vehicleList = await fetchAvailableTransportVehicles(driverId);
+      if (cancelled) return;
+      setVehicles(vehicleList);
+      setTransportVehicleId(vehicleList[0]?.id ?? '');
+      setLoadingVehicles(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [driverId, isOpen]);
+
   const handleSubmit = async () => {
-    if (!application || !driverId) return;
+    if (!application || !driverId || !transportVehicleId) return;
+    const selectedDriver = drivers.find((driver) => driver.id === driverId);
+    if (selectedDriver?.status !== 'free') {
+      setDriversError('Выбранный водитель занят на другом рейсе');
+      return;
+    }
     setSubmitting(true);
     try {
       await onSubmit(application.id, {
         driverId,
+        transportVehicleId,
         comment: comment.trim() || undefined,
       });
       onClose();
@@ -99,21 +167,51 @@ export function ProcessApplicationModal({
               </View>
 
               <FieldLabel>Назначить водителя:</FieldLabel>
+              {driversError ? <Text style={styles.errorText}>{driversError}</Text> : null}
+              {!loadingDrivers && drivers.length > 0 && !drivers.some((d) => d.status === 'free') ? (
+                <Text style={styles.hintText}>
+                  Все водители сейчас на рейсе. Дождитесь завершения или снимите назначение в БД.
+                </Text>
+              ) : null}
               <View style={styles.pickerWrap}>
                 <Picker
                   selectedValue={driverId}
                   enabled={!loadingDrivers && drivers.length > 0}
-                  onValueChange={setDriverId}
+                  onValueChange={(value) => {
+                    setDriversError('');
+                    setDriverId(value);
+                  }}
                 >
                   {loadingDrivers && <Picker.Item label="Загрузка..." value="" />}
                   {!loadingDrivers && drivers.length === 0 && (
-                    <Picker.Item label="Нет свободных водителей" value="" />
+                    <Picker.Item label="Нет водителей в компании" value="" />
                   )}
                   {drivers.map((driver) => (
                     <Picker.Item
                       key={driver.id}
                       label={formatDriverLabel(driver)}
                       value={driver.id}
+                    />
+                  ))}
+                </Picker>
+              </View>
+
+              <FieldLabel>Назначить транспорт:</FieldLabel>
+              <View style={styles.pickerWrap}>
+                <Picker
+                  selectedValue={transportVehicleId}
+                  enabled={!loadingVehicles && vehicles.length > 0}
+                  onValueChange={setTransportVehicleId}
+                >
+                  {loadingVehicles && <Picker.Item label="Загрузка..." value="" />}
+                  {!loadingVehicles && vehicles.length === 0 && (
+                    <Picker.Item label="Нет свободного ТС для водителя" value="" />
+                  )}
+                  {vehicles.map((vehicle) => (
+                    <Picker.Item
+                      key={vehicle.id}
+                      label={`${vehicle.displayName} · ${vehicle.capacity} т`}
+                      value={vehicle.id}
                     />
                   ))}
                 </Picker>
@@ -134,7 +232,13 @@ export function ProcessApplicationModal({
               title={submitting ? 'Назначение...' : 'Назначить водителя'}
               onPress={handleSubmit}
               loading={submitting}
-              disabled={!driverId || loadingDrivers}
+              disabled={
+                !driverId ||
+                !transportVehicleId ||
+                loadingDrivers ||
+                loadingVehicles ||
+                drivers.find((driver) => driver.id === driverId)?.status !== 'free'
+              }
             />
           </View>
         </View>
@@ -220,5 +324,15 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  errorText: {
+    fontSize: 13,
+    color: colors.error,
+    marginBottom: 6,
+  },
+  hintText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginBottom: 6,
   },
 });

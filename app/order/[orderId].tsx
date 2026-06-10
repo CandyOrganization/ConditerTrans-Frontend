@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Redirect, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   confirmDispatcherOrder,
   fetchDispatcherOrderById,
   formatDisplayDate,
   formatOrderCode,
+  formatShipmentDimensions,
   handoverDispatcherOrder,
   readyDispatcherOrderForShipment,
   rejectDispatcherOrder,
@@ -17,6 +18,7 @@ import {
   type DispatcherOrderAction,
 } from '../../src/api/dispatcherOrderStatus';
 import { ApiError } from '../../src/api/client';
+import { formatPaymentMethodLabel } from '../../src/api/paymentMethod';
 import { Header } from '../../src/components/Header/Header';
 import { DispatcherReadyForShipmentModal } from '../../src/components/Modal/DispatcherReadyForShipmentModal';
 import { DispatcherRejectModal } from '../../src/components/Modal/DispatcherRejectModal';
@@ -73,6 +75,13 @@ export default function DispatcherOrderDetailsScreen() {
       cancelled = true;
     };
   }, [isAuthenticated, isDispatcher, orderId, loadOrder]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isAuthenticated || !isDispatcher || !orderId) return;
+      void loadOrder();
+    }, [isAuthenticated, isDispatcher, orderId, loadOrder]),
+  );
 
   useEffect(() => {
     if (order?.requiresDeadlineConfirmation && !deadlinePromptShown) {
@@ -183,27 +192,50 @@ export default function DispatcherOrderDetailsScreen() {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Информация о заказе</Text>
               <InfoRow label="Дата формирования" value={formatDisplayDate(order.creationDate)} />
-              {order.requestedDeliveryDate ? (
-                <InfoRow
-                  label="Дата доставки"
-                  value={formatDisplayDate(order.requestedDeliveryDate)}
-                />
-              ) : null}
+              <InfoRow
+                label="Желаемая дата поставки"
+                value={
+                  order.requestedDeliveryDate
+                    ? formatDisplayDate(order.requestedDeliveryDate)
+                    : '—'
+                }
+              />
               <InfoRow label="Заказчик" value={order.companyName} />
               <InfoRow label="Адрес доставки" value={order.deliveryAddress} />
               {order.productionAddress ? (
                 <InfoRow label="Адрес погрузки" value={order.productionAddress} />
               ) : null}
-              {order.paymentType ? (
-                <InfoRow label="Оплата" value={order.paymentType} />
-              ) : null}
+              <InfoRow
+                label="Способ оплаты"
+                value={formatPaymentMethodLabel(
+                  order.paymentMethod,
+                  order.paymentMethodLabel,
+                  order.paymentType,
+                )}
+              />
               {order.amount != null ? (
                 <InfoRow
                   label="Сумма"
                   value={`${order.amount.toLocaleString('ru-RU')} ₽`}
                 />
               ) : null}
+              {formatShipmentDimensions(order) ? (
+                <InfoRow label="Габариты / вес груза" value={formatShipmentDimensions(order)!} />
+              ) : null}
             </View>
+
+            {order.status === 'Rescheduled' && order.proposedDeliveryDate ? (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Пересогласование сроков</Text>
+                <InfoRow
+                  label="Предложенная дата"
+                  value={formatDisplayDate(order.proposedDeliveryDate)}
+                />
+                {order.rescheduleReason ? (
+                  <InfoRow label="Причина" value={order.rescheduleReason} />
+                ) : null}
+              </View>
+            ) : null}
 
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Состав заказа</Text>

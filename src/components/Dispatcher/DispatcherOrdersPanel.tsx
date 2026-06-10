@@ -3,32 +3,57 @@ import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { fetchDispatcherOrders } from '../../api/dispatcherOrders';
 import { ApiError } from '../../api/client';
-import type { DispatcherOrderListItem } from '../../types';
+import type { DispatcherOrderListItem, PaginatedDispatcherOrders } from '../../types';
+import { DispatcherPagination } from './DispatcherPagination';
 import { OrderListCard } from '../Order/OrderListCard';
 import { Button, Input, LoadingText, SectionTitle } from '../ui/Ui';
 import { colors } from '../../theme/colors';
 
+const DEFAULT_PAGE_SIZE = 20;
+
+const emptyPage: PaginatedDispatcherOrders = {
+  items: [],
+  total: 0,
+  page: 1,
+  pageSize: DEFAULT_PAGE_SIZE,
+  totalPages: 0,
+  hasOrdersRequiringDeadlineConfirmation: false,
+};
+
 export function DispatcherOrdersPanel() {
   const router = useRouter();
-  const [orders, setOrders] = useState<DispatcherOrderListItem[]>([]);
+  const [data, setData] = useState<PaginatedDispatcherOrders>(emptyPage);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const loadOrders = useCallback(async () => {
     setError('');
     try {
-      setOrders(await fetchDispatcherOrders({ search: appliedSearch }));
+      const response = await fetchDispatcherOrders({
+        search: appliedSearch,
+        page,
+        pageSize,
+      });
+      const totalPages =
+        response.totalPages > 0
+          ? response.totalPages
+          : response.total > 0
+            ? Math.ceil(response.total / response.pageSize)
+            : 0;
+      setData({ ...response, totalPages });
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
         setError('Недостаточно прав для просмотра заказов');
       } else {
         setError(err instanceof Error ? err.message : 'Не удалось загрузить заказы');
       }
-      setOrders([]);
+      setData(emptyPage);
     }
-  }, [appliedSearch]);
+  }, [appliedSearch, page, pageSize]);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,8 +69,21 @@ export function DispatcherOrdersPanel() {
     };
   }, [loadOrders]);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      void loadOrders();
+    }, 30_000);
+    return () => clearInterval(timer);
+  }, [loadOrders]);
+
   const handleSearch = () => {
     setAppliedSearch(searchInput.trim());
+    setPage(1);
+  };
+
+  const handlePageSizeChange = (nextSize: number) => {
+    setPageSize(nextSize);
+    setPage(1);
   };
 
   const openOrder = (order: DispatcherOrderListItem) => {
@@ -57,9 +95,9 @@ export function DispatcherOrdersPanel() {
 
   return (
     <>
-      <SectionTitle>Список заказов ({orders.length})</SectionTitle>
+      <SectionTitle>Список заказов</SectionTitle>
 
-      {orders.some((item) => item.requiresDeadlineConfirmation) ? (
+      {data.hasOrdersRequiringDeadlineConfirmation ? (
         <View style={styles.deadlineNotice}>
           <Text style={styles.deadlineNoticeText}>
             Есть заказы, по которым нужно подтвердить готовность к сроку (за 2 дня до доставки).
@@ -78,19 +116,41 @@ export function DispatcherOrdersPanel() {
         <Button title="Найти" onPress={handleSearch} />
       </View>
 
+      {!loading && !error && data.total > 0 ? (
+        <DispatcherPagination
+          page={data.page}
+          pageSize={data.pageSize}
+          total={data.total}
+          totalPages={data.totalPages}
+          onPageChange={setPage}
+          onPageSizeChange={handlePageSizeChange}
+        />
+      ) : null}
+
       {loading ? <LoadingText /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {!loading && !error && orders.length === 0 ? (
+      {!loading && !error && data.items.length === 0 ? (
         <Text style={styles.empty}>Заказы не найдены</Text>
       ) : null}
 
-      {!loading && !error && orders.length > 0 ? (
+      {!loading && !error && data.items.length > 0 ? (
         <View style={styles.grid}>
-          {orders.map((order) => (
+          {data.items.map((order) => (
             <OrderListCard key={order.id} order={order} onPress={openOrder} />
           ))}
         </View>
+      ) : null}
+
+      {!loading && !error && data.total > 0 ? (
+        <DispatcherPagination
+          page={data.page}
+          pageSize={data.pageSize}
+          total={data.total}
+          totalPages={data.totalPages}
+          onPageChange={setPage}
+          onPageSizeChange={handlePageSizeChange}
+        />
       ) : null}
 
       {!loading ? (
@@ -120,7 +180,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 12,
     flexWrap: 'wrap',
   },
   searchInput: {
@@ -129,7 +189,7 @@ const styles = StyleSheet.create({
   },
   grid: {
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   empty: {
     color: colors.textMuted,

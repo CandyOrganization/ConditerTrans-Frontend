@@ -1,15 +1,29 @@
 import type { Application, ProcessApplicationDto } from '../types';
 import {
   assignDriverToCargo,
-  fetchPendingCargos,
+  fetchPendingCargosPaged,
   formatApplicationLabel,
   formatApplicationRoute,
+  mapCargoToApplication,
+  type CargoListFilter,
+  type PaginatedCargoList,
 } from './cargo';
 
 export { formatApplicationLabel, formatApplicationRoute };
 
-export async function fetchApplications(): Promise<Application[]> {
-  return fetchPendingCargos();
+export async function fetchApplicationsPaged(
+  params: CargoListFilter = {},
+): Promise<PaginatedCargoList & { applications: Application[] }> {
+  const page = await fetchPendingCargosPaged(params);
+  return {
+    ...page,
+    applications: page.items.map(mapCargoToApplication),
+  };
+}
+
+export async function fetchApplications(params?: CargoListFilter): Promise<Application[]> {
+  const page = await fetchApplicationsPaged(params);
+  return page.applications;
 }
 
 export async function processApplication(

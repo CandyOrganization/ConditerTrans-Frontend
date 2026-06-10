@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatDisplayDate, formatOrderCode } from '../../api/dispatcherOrders';
+import { formatPaymentMethodLabel } from '../../api/paymentMethod';
 import type { DispatcherOrderListItem } from '../../types';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { colors } from '../../theme/colors';
@@ -24,13 +25,24 @@ export function OrderListCard({ order, onPress }: OrderListCardProps) {
       ) : null}
       <Text style={styles.company}>{order.companyName}</Text>
       <Text style={styles.meta}>Сформирован: {formatDisplayDate(order.creationDate)}</Text>
+      <Text style={styles.meta}>
+        Желаемая доставка:{' '}
+        {order.requestedDeliveryDate
+          ? formatDisplayDate(order.requestedDeliveryDate)
+          : 'не указана'}
+      </Text>
       <Text style={styles.address} numberOfLines={2}>
         {order.deliveryAddress}
       </Text>
       {order.amount != null ? (
         <Text style={styles.amount}>
           {order.amount.toLocaleString('ru-RU')} ₽
-          {order.paymentType ? ` · ${order.paymentType}` : ''}
+          {' · '}
+          {formatPaymentMethodLabel(
+            order.paymentMethod,
+            order.paymentMethodLabel,
+            order.paymentType,
+          )}
         </Text>
       ) : null}
       <Text style={styles.link}>Открыть карточку →</Text>

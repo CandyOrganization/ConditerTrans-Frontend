@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Redirect } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { fetchCompanyDrivers, formatDriverLabel } from '../src/api/drivers';
 import {
   fetchCompanyEmployees,
   formatEmployeeName,
@@ -14,12 +15,15 @@ import { CreateEmployeeModal } from '../src/components/Modal/CreateEmployeeModal
 import { InviteSuccessModal } from '../src/components/Modal/InviteSuccessModal';
 import { Button, LoadingText, SectionTitle } from '../src/components/ui/Ui';
 import { useAuth } from '../src/context/AuthContext';
-import type { CurrentUser } from '../src/types';
+import type { CurrentUser, Driver } from '../src/types';
 import { colors } from '../src/theme/colors';
 
 export default function EmployeesScreen() {
   const { isAuthenticated, isAdmin, userRole, loading: authLoading } = useAuth();
+  const isCoordinator = userRole === 'Coordinator';
   const [employees, setEmployees] = useState<CurrentUser[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const showDriversOnly = isCoordinator && !isAdmin;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -31,23 +35,36 @@ export default function EmployeesScreen() {
     setLoading(true);
     setError('');
     try {
+      if (showDriversOnly) {
+        setDrivers(await fetchCompanyDrivers());
+        setEmployees([]);
+        return;
+      }
+
+      setDrivers([]);
       setEmployees(await fetchCompanyEmployees());
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
-        setError('Недостаточно прав для просмотра сотрудников');
+        setError(
+          isCoordinator
+            ? 'Недостаточно прав для просмотра водителей'
+            : 'Недостаточно прав для просмотра сотрудников',
+        );
       } else {
         setError(err instanceof Error ? err.message : 'Не удалось загрузить сотрудников');
       }
       setEmployees([]);
+      setDrivers([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showDriversOnly, isCoordinator]);
 
   useEffect(() => {
-    if (!isAuthenticated || !isAdmin) return;
+    if (!isAuthenticated) return;
+    if (!isAdmin && !isCoordinator) return;
     void loadEmployees();
-  }, [isAdmin, isAuthenticated, loadEmployees]);
+  }, [isAdmin, isAuthenticated, isCoordinator, loadEmployees]);
 
   const handleCreate = async (dto: Parameters<typeof inviteEmployee>[0]) => {
     const { inviteId } = await inviteEmployee(dto);
@@ -63,7 +80,7 @@ export default function EmployeesScreen() {
     return <Redirect href="/login" />;
   }
 
-  if (!isAdmin) {
+  if (!isAdmin && !isCoordinator) {
     return <Redirect href="/" />;
   }
 
@@ -73,19 +90,40 @@ export default function EmployeesScreen() {
 
       <ScrollView style={styles.main} contentContainerStyle={styles.content}>
         <View style={styles.topRow}>
-          <SectionTitle>Сотрудники организации</SectionTitle>
-          <Button title="+ Добавить" onPress={() => setModalOpen(true)} />
+          <SectionTitle>
+            {showDriversOnly ? 'Водители' : 'Сотрудники организации'}
+          </SectionTitle>
+          {isAdmin ? <Button title="+ Добавить" onPress={() => setModalOpen(true)} /> : null}
         </View>
 
         {loading ? <LoadingText /> : null}
 
         {!loading && error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {!loading && !error && employees.length === 0 ? (
+        {!loading && !error && showDriversOnly && drivers.length === 0 ? (
+          <Text style={styles.empty}>
+            Водители не найдены. Добавьте водителя через администратора компании и зарегистрируйте
+            ТС.
+          </Text>
+        ) : null}
+
+        {!loading && !error && !showDriversOnly && employees.length === 0 ? (
           <Text style={styles.empty}>Сотрудники не найдены</Text>
         ) : null}
 
-        {!loading && !error
+        {!loading && !error && showDriversOnly
+          ? drivers.map((driver) => (
+              <View key={driver.id} style={styles.card}>
+                <Text style={styles.name}>{formatDriverLabel(driver)}</Text>
+                <Text style={styles.meta}>{driver.phone}</Text>
+                {driver.employeeNumber ? (
+                  <Text style={styles.meta}>Таб. № {driver.employeeNumber}</Text>
+                ) : null}
+              </View>
+            ))
+          : null}
+
+        {!loading && !error && !showDriversOnly
           ? employees.map((employee) => (
               <View key={employee.id} style={styles.card}>
                 <Text style={styles.name}>{formatEmployeeName(employee)}</Text>

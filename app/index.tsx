@@ -2,12 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { Redirect, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fetchApplications, processApplication } from '../src/api/applications';
+import { fetchApplicationsPaged, processApplication } from '../src/api/applications';
 import {
-  fetchCoordinatorActiveCargos,
-  fetchDriverActiveCargos,
+  fetchCoordinatorActiveCargosPaged,
+  fetchDriverActiveCargosPaged,
   formatCargoShortId,
+  mapCargoToTrip,
 } from '../src/api/cargo';
+import { DispatcherPagination } from '../src/components/Dispatcher/DispatcherPagination';
 import { fetchTrips } from '../src/api/trips';
 import { ApiError } from '../src/api/client';
 import type {
@@ -19,6 +21,7 @@ import type {
 } from '../src/types';
 import { ApplicationCard } from '../src/components/ApplicationCard/ApplicationCard';
 import { DispatcherOrdersPanel } from '../src/components/Dispatcher/DispatcherOrdersPanel';
+import { ManagerOrderHistoryPanel } from '../src/components/Manager/ManagerOrderHistoryPanel';
 import { ProcessApplicationModal } from '../src/components/Modal/ProcessApplicationModal';
 import { Header } from '../src/components/Header/Header';
 import { TripTable } from '../src/components/TripTable/TripTable';
@@ -32,9 +35,18 @@ export default function DashboardScreen() {
   const isCoordinator = userRole === 'Coordinator';
   const isDriver = userRole === 'Driver';
   const isDispatcher = userRole === 'Dispatcher';
+  const isManager = userRole === 'Manager';
 
   const [applications, setApplications] = useState<Application[]>([]);
+  const [applicationsTotal, setApplicationsTotal] = useState(0);
+  const [applicationsPage, setApplicationsPage] = useState(1);
+  const [applicationsPageSize, setApplicationsPageSize] = useState(20);
+  const [applicationsTotalPages, setApplicationsTotalPages] = useState(0);
   const [activeTrips, setActiveTrips] = useState<Trip[]>([]);
+  const [activeTripsTotal, setActiveTripsTotal] = useState(0);
+  const [activeTripsPage, setActiveTripsPage] = useState(1);
+  const [activeTripsPageSize, setActiveTripsPageSize] = useState(20);
+  const [activeTripsTotalPages, setActiveTripsTotalPages] = useState(0);
   const [trips, setTrips] = useState<PaginatedTrips | null>(null);
   const [loading, setLoading] = useState(true);
   const [applicationsError, setApplicationsError] = useState('');
@@ -48,12 +60,25 @@ export default function DashboardScreen() {
   const loadApplications = useCallback(async () => {
     if (!isCoordinator) {
       setApplications([]);
+      setApplicationsTotal(0);
       return;
     }
 
     setApplicationsError('');
     try {
-      setApplications(await fetchApplications());
+      const response = await fetchApplicationsPaged({
+        page: applicationsPage,
+        pageSize: applicationsPageSize,
+      });
+      setApplications(response.applications);
+      setApplicationsTotal(response.total);
+      setApplicationsTotalPages(
+        response.totalPages > 0
+          ? response.totalPages
+          : response.total > 0
+            ? Math.ceil(response.total / response.pageSize)
+            : 0,
+      );
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
         setApplicationsError('Недостаточно прав для просмотра заказов');
@@ -61,19 +86,35 @@ export default function DashboardScreen() {
         setApplicationsError(err instanceof Error ? err.message : 'Не удалось загрузить заказы');
       }
       setApplications([]);
+      setApplicationsTotal(0);
+      setApplicationsTotalPages(0);
     }
-  }, [isCoordinator]);
+  }, [isCoordinator, applicationsPage, applicationsPageSize]);
 
   const loadActiveTrips = useCallback(async () => {
     if (isCoordinator) {
       setActiveTripsError('');
       try {
-        setActiveTrips(await fetchCoordinatorActiveCargos());
+        const response = await fetchCoordinatorActiveCargosPaged({
+          page: activeTripsPage,
+          pageSize: activeTripsPageSize,
+        });
+        setActiveTrips(response.items.map(mapCargoToTrip));
+        setActiveTripsTotal(response.total);
+        setActiveTripsTotalPages(
+          response.totalPages > 0
+            ? response.totalPages
+            : response.total > 0
+              ? Math.ceil(response.total / response.pageSize)
+              : 0,
+        );
       } catch (err) {
         setActiveTripsError(
           err instanceof Error ? err.message : 'Не удалось загрузить активные рейсы',
         );
         setActiveTrips([]);
+        setActiveTripsTotal(0);
+        setActiveTripsTotalPages(0);
       }
       return;
     }
@@ -81,9 +122,12 @@ export default function DashboardScreen() {
     if (isDriver) {
       setActiveTripsError('');
       try {
-        const cargos = await fetchDriverActiveCargos();
+        const response = await fetchDriverActiveCargosPaged({
+          page: activeTripsPage,
+          pageSize: activeTripsPageSize,
+        });
         setActiveTrips(
-          cargos.map((cargo) => ({
+          response.items.map((cargo) => ({
             id: cargo.id,
             route: cargo.deliveryAddress,
             client: cargo.orderNumber ? `Заказ №${cargo.orderNumber}` : 'Груз',
@@ -93,20 +137,31 @@ export default function DashboardScreen() {
             loadingDate: new Date(cargo.loadingDate).toLocaleDateString('ru-RU'),
           })),
         );
+        setActiveTripsTotal(response.total);
+        setActiveTripsTotalPages(
+          response.totalPages > 0
+            ? response.totalPages
+            : response.total > 0
+              ? Math.ceil(response.total / response.pageSize)
+              : 0,
+        );
       } catch (err) {
         setActiveTripsError(
           err instanceof Error ? err.message : 'Не удалось загрузить активные рейсы',
         );
         setActiveTrips([]);
+        setActiveTripsTotal(0);
+        setActiveTripsTotalPages(0);
       }
       return;
     }
 
     setActiveTrips([]);
-  }, [isCoordinator, isDriver]);
+    setActiveTripsTotal(0);
+  }, [isCoordinator, isDriver, activeTripsPage, activeTripsPageSize]);
 
   const loadTrips = useCallback(async () => {
-    if (isCoordinator || isDriver || isDispatcher) {
+    if (isCoordinator || isDriver || isDispatcher || isManager) {
       setTrips(null);
       return;
     }
@@ -119,7 +174,7 @@ export default function DashboardScreen() {
         pageSize: 5,
       }),
     );
-  }, [isCoordinator, isDriver, isDispatcher, search, statusFilter, page]);
+  }, [isCoordinator, isDriver, isDispatcher, isManager, search, statusFilter, page]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -162,6 +217,17 @@ export default function DashboardScreen() {
     );
   }
 
+  if (isManager) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <Header />
+        <ScrollView style={styles.main} contentContainerStyle={styles.content}>
+          <ManagerOrderHistoryPanel />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <Header />
@@ -173,7 +239,7 @@ export default function DashboardScreen() {
           <>
             {isCoordinator ? (
               <>
-                <SectionTitle>Заказы к обработке ({applications.length})</SectionTitle>
+                <SectionTitle>Заказы к обработке ({applicationsTotal})</SectionTitle>
                 {applicationsError ? (
                   <Text style={styles.error}>{applicationsError}</Text>
                 ) : null}
@@ -193,12 +259,23 @@ export default function DashboardScreen() {
                     ))}
                   </View>
                 ) : null}
+                <DispatcherPagination
+                  page={applicationsPage}
+                  pageSize={applicationsPageSize}
+                  total={applicationsTotal}
+                  totalPages={applicationsTotalPages}
+                  onPageChange={setApplicationsPage}
+                  onPageSizeChange={(size) => {
+                    setApplicationsPageSize(size);
+                    setApplicationsPage(1);
+                  }}
+                />
               </>
             ) : null}
 
             {showActiveTrips ? (
               <>
-                <SectionTitle>Активные рейсы ({activeTrips.length})</SectionTitle>
+                <SectionTitle>Активные рейсы ({activeTripsTotal})</SectionTitle>
                 {activeTripsError ? <Text style={styles.error}>{activeTripsError}</Text> : null}
                 {!activeTripsError && activeTrips.length === 0 ? (
                   <Text style={styles.empty}>Нет активных рейсов</Text>
@@ -232,6 +309,17 @@ export default function DashboardScreen() {
                     ))}
                   </View>
                 ) : null}
+                <DispatcherPagination
+                  page={activeTripsPage}
+                  pageSize={activeTripsPageSize}
+                  total={activeTripsTotal}
+                  totalPages={activeTripsTotalPages}
+                  onPageChange={setActiveTripsPage}
+                  onPageSizeChange={(size) => {
+                    setActiveTripsPageSize(size);
+                    setActiveTripsPage(1);
+                  }}
+                />
               </>
             ) : null}
 

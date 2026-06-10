@@ -35,6 +35,22 @@ export interface DispatcherOrderLine {
 
 export type DeadlineConfirmationPhase = 'None' | 'FirstRequest' | 'Reminder';
 
+export interface PaginatedDispatcherOrders {
+  items: DispatcherOrderListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasOrdersRequiringDeadlineConfirmation: boolean;
+}
+
+export interface DispatcherOrdersFilter {
+  search?: string;
+  status?: DispatcherOrderStatus;
+  page?: number;
+  pageSize?: number;
+}
+
 export interface DispatcherOrderListItem {
   id: string;
   orderNumber: number;
@@ -44,6 +60,8 @@ export interface DispatcherOrderListItem {
   status: DispatcherOrderStatus;
   amount?: number;
   paymentType?: string | null;
+  paymentMethod?: string | null;
+  paymentMethodLabel?: string | null;
   requestedDeliveryDate?: string | null;
   requiresDeadlineConfirmation?: boolean;
   deadlineConfirmationExpiresAt?: string | null;
@@ -52,6 +70,12 @@ export interface DispatcherOrderListItem {
 
 export interface DispatcherOrderDetail extends DispatcherOrderListItem {
   productionAddress?: string | null;
+  proposedDeliveryDate?: string | null;
+  rescheduleReason?: string | null;
+  shipmentLengthM?: number | null;
+  shipmentWidthM?: number | null;
+  shipmentHeightM?: number | null;
+  shipmentWeightKg?: number | null;
   lines: DispatcherOrderLine[];
   /** Для модалки отгрузки (когда логист уже назначен) */
   handoverVehicle?: string | null;
@@ -108,6 +132,40 @@ export interface AcceptManagerRescheduleDto {
 
 export interface RejectManagerRescheduleDto {
   reason?: string;
+}
+
+export interface ManagerOrderHistoryItem {
+  id: string;
+  orderNumber: number;
+  creationDate: string;
+  status: ManagerOrderStatus;
+  amount: number;
+  reschedule?: RescheduleProposal;
+}
+
+export interface PaginatedManagerOrderHistory {
+  items: ManagerOrderHistoryItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface ManagerCurrentDraft {
+  id: string;
+  orderNumber: number;
+  creationDate: string;
+  status: 'Draft';
+  productionAddress?: string | null;
+  deliveryAddress?: string | null;
+  lines: Array<{
+    id: string;
+    productId: string;
+    quantityOfUnits: number;
+    productName: string;
+    productPrice: number;
+    formattedQuantity: string;
+  }>;
 }
 
 export interface EmployeeInfo {
@@ -217,6 +275,7 @@ export interface Driver {
 
 export interface ProcessApplicationDto {
   driverId: string;
+  transportVehicleId: string;
   comment?: string;
 }
 

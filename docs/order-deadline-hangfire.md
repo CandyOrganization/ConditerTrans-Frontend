@@ -28,3 +28,29 @@ dotnet ef database update --project DataAccess --startup-project DataAccess
 В ответах диспетчера: `requestedDeliveryDate`, `requiresDeadlineConfirmation`, `deadlineConfirmationExpiresAt`.
 
 При отправке заказа менеджером: `requested_delivery_date` в `POST .../submit`.
+
+Ручной запуск (как Hangfire «Trigger now»), ответ со счётчиками:
+
+`POST /api/orders/dispatcher/run-deadline-check` (роль Dispatcher)
+
+```json
+{ "openedCount": 1, "reminderCount": 0, "rejectedCount": 0, "skippedAlreadyHandledCount": 0 }
+```
+
+Если все нули — ни один заказ не подошёл под правила (см. ниже).
+
+## Почему «Trigger now» не меняет UI
+
+1. **Hangfire не пушит во фронт** — данные обновляются только после запроса к API. Список диспетчера опрашивает API каждые 30 с; иначе нажмите «Обновить список».
+2. **Даты в UTC** — окно открывается, когда `UTC today >= requested_delivery_date − 2 дня`. Пример: при `requested_delivery_date = 2026-06-04` окно откроется **2 июня по UTC** (ночью 3 июня по Москве).
+3. **Условия заказа:** `status = Confirmed`, `cargo_id IS NULL`, `requested_delivery_date` задан, `deadline_confirmation_phase = 0 (None)`.
+
+Проверка в БД:
+
+```sql
+SELECT id, status, requested_delivery_date, cargo_id, deadline_confirmation_phase
+FROM orders
+WHERE status = 1; -- Confirmed
+```
+
+Логи API после job: `Deadline confirmation job (UTC ...): opened=...`.

@@ -10,26 +10,38 @@ interface DriverListItemResponse {
   isAvailable: boolean;
 }
 
-function mapDriver(item: DriverListItemResponse): Driver {
+type DriverListItemRaw = DriverListItemResponse & {
+  Id?: string;
+  EmployeeId?: string;
+  FullName?: string;
+  Phone?: string;
+  EmployeeNumber?: string;
+  IsAvailable?: boolean;
+};
+
+function mapDriver(item: DriverListItemRaw): Driver {
+  const rawAvailable = item.isAvailable ?? item.IsAvailable;
+  const isAvailable = rawAvailable !== undefined ? rawAvailable : true;
+
   return {
-    id: item.id,
-    employeeId: item.employeeId,
-    name: item.fullName,
-    phone: item.phone,
-    employeeNumber: item.employeeNumber,
-    status: item.isAvailable ? 'free' : 'busy',
+    id: item.id ?? item.Id ?? '',
+    employeeId: item.employeeId ?? item.EmployeeId ?? '',
+    name: item.fullName ?? item.FullName ?? '—',
+    phone: item.phone ?? item.Phone ?? '',
+    employeeNumber: item.employeeNumber ?? item.EmployeeNumber,
+    status: isAvailable ? 'free' : 'busy',
   };
 }
 
 export function formatDriverLabel(driver: Driver): string {
-  const statusLabel = driver.status === 'free' ? 'свободен' : 'занят';
+  const statusLabel = driver.status === 'free' ? 'свободен' : 'занят на рейсе';
   const number = driver.employeeNumber ? ` · ${driver.employeeNumber}` : '';
   return `${driver.name}${number} — ${statusLabel}`;
 }
 
 export async function fetchCompanyDrivers(): Promise<Driver[]> {
-  const items = await apiRequest<DriverListItemResponse[]>('/users/drivers');
-  return items.map(mapDriver);
+  const items = await apiRequest<DriverListItemRaw[]>('/users/drivers');
+  return (items ?? []).map(mapDriver).filter((driver) => driver.id);
 }
 
 export async function fetchAvailableDrivers(): Promise<Driver[]> {
